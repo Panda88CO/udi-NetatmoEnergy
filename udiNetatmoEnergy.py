@@ -6,8 +6,6 @@ Copyright (C) 2023 Universal Devices
 
 MIT License
 """
-
-
 import time
 import traceback
 import re
