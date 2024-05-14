@@ -1,0 +1,69 @@
+<editors>
+    <editor id="status">
+        <range uom="25" subset="0,1" />
+    </editor>
+
+    <editor id="bool">
+        <range uom="2" subset="0,1" />
+    </editor>
+
+      <editor id="connect">
+        <range uom="25" subset="0-1,99"  nls="connect"/>
+    </editor>  
+
+    <editor id="temperature">
+        <range uom="4" min="-50" max="65" prec="1" />
+        <range uom="17" min="-50" max="150" prec="1" />
+        <range uom="25" subset="0,99" nls="error" />
+    </editor>
+
+    <editor id="set_temp">
+        <range uom="4" min="5" max="35" step="0.5" prec="1" />
+        <range uom="17" min="41" max="95" step="0.5" prec="1" />   
+    </editor>
+
+
+    <editor id="t_timestamp">
+        <range uom="44" min="0" max="525600" prec="1" />
+        <range uom="25" subset="99" nls="error" />
+    </editor>
+
+    <editor id="t_ctrl_mode">
+        <range uom="25" subset="0-3,99" nls="ctrl_mode" />
+    </editor>
+
+    <editor id="setCLIMD">
+        <range uom="25" subset="0-2" nls="ctrl_mode" />
+    </editor>
+
+    <editor id="energy_req">
+        <range uom="0" min="0" max="10000"/>
+        <range uom="25" subset="0,99" nls="error" />
+    </editor>    
+
+    <editor id="th_mode">
+        <!--<range uom="25" subset="0-2" nls="th_mode" />-->
+        <range uom="25" subset="0-1" nls="th_mode" />
+    </editor>
+
+    <editor id="t_min">
+         <range uom="44" min="0" max="120" prec="0" />
+    </editor>
+
+    <editor id="battery">
+        <range uom="25" subset="0-6,99" nls="battery" />
+    </editor>
+
+
+    <editor id="bat_value">
+        <range uom="72"  min="0" max="7" prec="2" />
+        <range uom="25" subset="0,99" nls="error" />
+    </editor>
+
+
+    <editor id="rf_strength">
+        <range uom="131"  min="-100" max="174"/>
+        <range uom="25" subset="0,99" nls="error" />
+    </editor>
+
+</editors>

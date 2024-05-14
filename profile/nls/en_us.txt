@@ -1,0 +1,57 @@
+# controller
+ND-controller-NAME = Netatmo Energy System
+ND-controller-ICON = EnergyMonitor
+ST-ctl-ST-NAME = NodeServer State
+CMD-ctl-UPDATE-NAME = Force Update 
+
+ND-room-NAME = Room
+ND-room-ICON = Thermostat
+ST-nroom-ST-NAME = Room State
+ST-nroom-CLITEMP-NAME = Temperature
+ST-nroom-CLISPH-NAME = Set Point
+ST-nroom-CLIMD-NAME = Mode
+ST-nroom-GV0-NAME = Energy Request
+ST-nroom-GV1-NAME = Windown Open
+ST-nroom-GV2-NAME = Predictive
+ST-nroom-GV3-NAME = Time Since Update
+
+CMD-nroom-UPDATE-NAME = Force Update 
+CMD-nroom-SETPOINT-NAME = Set Setpoint
+CMD-nroom-OPMODE-NAME = Set Mode 
+CMDP-stemp-NAME = Setpoint temp
+CMDP-spmode-NAME = Setpoint mode
+CMDP-active_t-NAME = Active time
+CMDP-opmode-NAME = Operation mode
+
+ND-valve-NAME = Valve
+ND-valve-ICON = Thermostat
+ST-nvalve-ST-NAME = Valve State
+ST-nvalve-GV0-NAME = Battery Level 
+ST-nvalve-GV1-NAME = RF Strength 
+ST-nvalve-Gv2-NAME = Battery Reading
+CMD-nvalve-UPDATE-NAME = Force Update 
+
+connect-0 = Not Connected
+connect-1 = Connected
+connect-99 = Unknown
+
+error-0 = No support
+error-99 = Unknown
+
+th_mode-0 = Manual
+th_mode-1 = Home/Schedule
+th_mode-2 = Max
+
+ctrl_mode-0 = Schedule
+ctrl_mode-1 = Away
+ctrl_mode-2 = Frost Guard
+ctrl_mode-99 = Unknown
+
+
+battery-0 = Maximum
+battery-1 = Full
+battery-2 = High
+battery-3 = Medium
+battery-4 = Low
+battery-5 = Very Low
+battery-99 = Unknown

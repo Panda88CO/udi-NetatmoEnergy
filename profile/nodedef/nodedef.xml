@@ -1,0 +1,61 @@
+<nodeDefs>
+  <nodeDef id="controller" nls="ctl">
+    <editors />
+    <sts>
+      <st id="ST" editor="connect" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="UPDATE" /> 
+      </accepts>
+    </cmds>
+  </nodeDef>
+
+  <nodeDef id="room" nls="nroom">
+    <sts>
+      <st id="ST" editor="connect" />
+      <st id="CLITEMP" editor="temperature" />
+      <st id="CLISPH" editor="temperature" />
+      <st id="CLIMD" editor="t_ctrl_mode" />
+      <st id="GV0" editor="energy_req" />
+      <st id="GV1" editor="bool" />
+      <st id="GV2" editor="bool" />
+      <st id="GV3" editor="t_timestamp" />     
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="UPDATE" />  
+        <cmd id="SETPOINT" >
+              <p id="stemp" editor="set_temp" init="CLISPH"/>             
+               <p id="spmode" editor="th_mode" init="0" /> 
+               <p id="active_t" editor="t_min" init="0" />   
+
+        </cmd>      
+        <cmd id="OPMODE" >
+                <p id="opmode" editor="setCLIMD" init="CLIMD"/> 
+                <p id="active_t" editor="t_min" init="0" />   
+        </cmd>          
+</accepts>
+    </cmds>
+  </nodeDef>
+
+  <nodeDef id="valve" nls="nvalve">
+    <sts>
+      <st id="ST" editor="connect" />
+      <st id="GV0" editor="battery" />
+      <st id="GV1" editor="rf_strength" />
+      <st id="GV2" editor="bat_value" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts> 
+        <cmd id="UPDATE" />        
+      </accepts>
+    </cmds>
+  </nodeDef>
+
+  
+
+</nodeDefs>
