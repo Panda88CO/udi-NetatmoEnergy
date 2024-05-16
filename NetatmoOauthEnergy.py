@@ -496,7 +496,7 @@ class NetatmoCloud(OAuth):
         for home_id in home_list:
             found = False
             home = home_list[home_id]
-            logging.debug('homeget_energy_homes: {}'.format(home))
+            logging.debug('get_energy_homes: {}'.format(home))
             if 'modules' in home:   
                 for module in home['modules']:
                     if module['type'] in self._dev_list:
