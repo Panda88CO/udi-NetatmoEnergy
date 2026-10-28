@@ -25,7 +25,7 @@
 
 
     <editor id="TTIMESTAMP">
-        <range uom="44" min="0" max="525600" prec="1" />
+        <range uom="151" min="0" max="2147483647" prec="0" />
         <range uom="25" subset="99" nls="ERROR" />
     </editor>
 

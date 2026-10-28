@@ -75,7 +75,7 @@ def _profile_editors(temp_unit: str = "C") -> list:
         {
             "id": "TTIMESTAMP",
             "ranges": [
-                {"uom": "44", "min": 0, "max": 525600, "prec": 1},
+                {"uom": "151", "min": 0, "max": 2147483647, "prec": 0},
                 {"uom": "25", "subset": "99", "names": {"99": "Unknown"}},
             ],
         },
@@ -204,7 +204,7 @@ def _dynamic_profile_payload(temp_unit: str = "C") -> dict:
                     {"id": "GV0", "editor": "ENERGYREQ", "name": "Energy Request"},
                     {"id": "GV1", "editor": "BOOL", "name": "Window Open"},
                     {"id": "GV2", "editor": "BOOL", "name": "Predictive"},
-                    {"id": "GV3", "editor": "TTIMESTAMP", "name": "Time Since Update"},
+                    {"id": "GV3", "editor": "TTIMESTAMP", "name": "Last Update Time"},
                 ],
                 "cmds": {
                     "sends": [],

@@ -48,7 +48,7 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
             {'driver' : 'GV0', 'value': 99,  'uom':25, 'name': 'Energy Request'}, 
             {'driver' : 'GV1', 'value': 0,  'uom':2, 'name': 'Window Open'}, 
             {'driver' : 'GV2', 'value': 0,  'uom':2, 'name': 'Predictive'}, 
-            {'driver' : 'GV3', 'value': 99,  'uom':25, 'name': 'Time Since Update'},      
+            {'driver' : 'GV3', 'value': 99,  'uom':25, 'name': 'Last Update Time'},      
             {'driver' : 'ST', 'value': 99,  'uom':25, 'name': 'Room State'}, 
             ]
         self.apply_profile_driver_names()
@@ -159,7 +159,7 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
                     self.node.setDriver('GV0', 99, True, False, 25)
                 self.node.setDriver('GV1', self.bool2ISY(self.myNetatmo.get_room_open_window(self.home_id, self.room_id)))
                 self.node.setDriver('GV2', self.bool2ISY(self.myNetatmo.get_room_anticipating(self.home_id, self.room_id)))
-                self.node.setDriver('GV3', int(self.myNetatmo.get_time_since_last_update_sec(self.home_id)/60), True, True, 44)
+                self.node.setDriver('GV3', int(self.myNetatmo.get_last_update_time(self.home_id)), True, True, 151)
  
             else:
                 self.node.setDriver('CLITEMP', 99, True, False, 25 )

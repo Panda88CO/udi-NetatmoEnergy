@@ -420,6 +420,11 @@ class NetatmoCloud(OAuth):
             delay_s = int(timenow - self.energy_data[home_id]['meas_time'])
             return(delay_s)
         return(0)
+
+    def get_last_update_time(self, home_id):
+        if home_id in self.energy_data and 'meas_time' in self.energy_data[home_id]:
+            return(int(self.energy_data[home_id]['meas_time']))
+        return(int(time.time()))
     
     def get_room_temp(self, home_id, room_id):
         logging.debug('get_room_temp')

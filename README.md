@@ -1,53 +1,59 @@
+# Netatmo Energy Node Server (`udi-NetatmoEnergy`)
 
-# Netatmo Energy NodeServer
+Polyglot v3x (PG3x) node server for Netatmo Smart Heating / Energy devices (Smart Radiator Valves, Smart Thermostats, and OpenTherm/Smarther Thermostats).
 
-Netatmo Energy (valves) NodeServer for PG3, PG3x
-MIT license.
+## Features
+- **Controller Node (`CONTROLLER`)**:
+  - Reports NodeServer connection state (`ST`) and sends a `DON`/`DOF` heartbeat on each `shortPoll`.
+  - Dynamically loads the JSON profile after PG3x completes initialization (`CONFIGDONE`).
+- **Room Node (`ROOM`)**:
+  - Created for each room in enabled Netatmo homes that contains a Netatmo radiator valve (`NRV`) or thermostat (`NATherm1`, `OTM`, `BNS`).
+  - Reports Room State (`ST`), Measured Temperature (`CLITEMP`), Set Point (`CLISPH`), Mode (`CLIMD`: Schedule, Away, Frost Guard, Manual), Energy Request (`GV0`), Window Open (`GV1`), Predictive Heating (`GV2`), and Last Update Time (`GV3`, Unix timestamp `uom=151`).
+  - Supports **Set Setpoint** (`SETPOINT`: target temperature, Manual or Home/Schedule mode, and optional active duration in minutes) and **Set Mode** (`OPMODE`: Schedule, Away, or Frost Guard mode with optional active duration in minutes).
+- **Valve / Thermostat Subnode (`VALVE`)**:
+  - Created under each Room node for each radiator valve or wireless thermostat in that room.
+  - Reports Valve State (`ST`), Battery Level (`GV0`: Maximum, Full, High, Medium, Low, Very Low), RF Signal Strength (`GV1` in dBm), and Battery Reading (`GV2` in Volts).
 
-This node server integrates the Netatmo Smart Vales as part of the energy system. You will need account access to your Netatmo via the Netatmo Developer API https://dev.netatmo.com.  Log in and select My Apps and then Create,  Fill in info and press save - This exposes a client ID and client secret. Note, if you have other NEtatmo systems and node servers, you need to create a new App with separate Client ID and Client Secret keys.
-Start the node server under PG3 - go to configuration and enter client ID and client Secret.  Then restart.   First time you do this you should see a text box asking to authendicate.  Press the authendicate button - you should be taken to a new webpage where you login using you Netatmo id and password (used to generate the clientID etc).  Then press accept and you will be returned to the PG3 interface. 
-After running a little the differnt main netatmo homes (with energy system) under the account should be listed in configuration.  By default all are active.  If you do not want one system included set the value to 0.
-You can send the preferred temp unit, but NEtatmo operates in C.  It will be displayed in the node as the selected unit, but valves will show Celcius
-Restart and you should be up and running
+## System Requirements
+- **PG3x** 3.3.0 or greater (PG3 is not supported because OAuth2 requires PG3x)
+- **`udi_interface`** 3.3.5 or greater
 
-If people have the boiler control, I can add this, but I would need access to the system to test it.
+---
 
-Good luck
+## Quick Start Guide for New Users
 
-## Installation
+### 1. Create Your Netatmo Developer Credentials
+To allow the node server to communicate with your Netatmo account, you need a personal Netatmo Developer App:
+1. Log in to the Netatmo Developer Portal at [https://dev.netatmo.com](https://dev.netatmo.com) using your normal Netatmo account.
+2. Go to **My Apps** and click **Create**.
+3. Enter an **App Name** and **Description**, accept the terms, and click **Save**.
+4. Copy the **Client ID** and **Client Secret** shown on your app page.
+   > **Important:** If you use other Netatmo node servers (such as Netatmo Weather), create a separate Developer App with its own Client ID and Client Secret for Netatmo Energy.
 
-1. Backup Your ISY in case of problems!
-2. Go to the Polyglot Store in the UI and install.
-3. Add NodeServer in PG3x - NOTE PG3 is not supported as OAuth library does not work on PG3 
-   Got ton configuration and enter clientId and client secret (see above)
-   Restart
-   Authendicate if asked
-   Select weather stations to be used in configuration (1 for enable, 0 for disable)
-   Restart node server
-   Go to Admin console 
+### 2. Configure the Node Server in PG3x
+1. Install and start the **Netatmo Energy** node server from the PG3x Node Server Store.
+2. Open the node server's **Configuration** tab in PG3x and set the following Custom Configuration Parameters:
+   - `clientID`: Paste your Netatmo App **Client ID**.
+   - `clientSecret`: Paste your Netatmo App **Client Secret**.
+   - `TEMP_UNIT`: Set to `C` (default) for Celsius or `F` for Fahrenheit. (Note: Netatmo hardware natively displays Celsius on the physical valves, while IoX will display and accept setpoints in your chosen `TEMP_UNIT`.)
+3. Click **Save Changes** and **Restart** the node server.
 
-### Node Settings
-The settings for this node are:
+### 3. Complete OAuth2 Authentication
+1. After restarting, you will see a notice in PG3x: **Please initiate authentication**.
+2. Click the **Authenticate** button in the PG3x UI.
+3. A browser window will open to Netatmo's login page. Sign in and click **Accept** to authorize access.
+4. Once redirected back to PG3x, the node server will automatically discover your Netatmo Energy homes, rooms, and valves.
 
-#### Short Poll
-   * Query system instantaneous data. The default is 5 minutes - sends a heart beat as well 0->1 or 1 -> 0
-#### Long Poll
-   * Query System for all data - mostly update battery state. The default is 60 minutes.
+### 4. Selecting Homes (Optional)
+- After initial discovery, each Netatmo home with Energy devices is added as a custom parameter in PG3x Configuration with a default value of `1` (Enabled).
+- To exclude a home, change its parameter value to `0`, click **Save Changes**, and **Restart** the node server.
 
-#### ClientID
-   * Your Netatmo App Client ID
+---
 
-#### ClientSecret
-   * Your Netatmo App Client Secret
+## Polling Configuration
+- **Short Poll (`shortPoll`)**: Default is **300 seconds (5 minutes)**. Polls current room temperatures, setpoints, modes, and valve status (`/homestatus`) and toggles the controller heartbeat (`DON`/`DOF`).
+- **Long Poll (`longPoll`)**: Default is **3600 seconds (60 minutes)**. Refreshes home layout (`/homesdata`) and updates all room and valve drivers.
 
-#### TEMP_UNIT
-   * C (default) of F
+## License
+MIT License
 
-## Requirements
-   * PG3x ver 3.3.0 or greater
-   * UDI_interfae 3.1.1 or greater
-
-# Release Notes
-
-- 0.1.0 02/07/2024
-   - Initial version published to github - No support for MAX/Boost - API not working 

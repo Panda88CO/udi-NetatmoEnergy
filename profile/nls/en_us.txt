@@ -13,7 +13,7 @@ ST-NROOM-CLIMD-NAME = Mode
 ST-NROOM-GV0-NAME = Energy Request
 ST-NROOM-GV1-NAME = Window Open
 ST-NROOM-GV2-NAME = Predictive
-ST-NROOM-GV3-NAME = Time Since Update
+ST-NROOM-GV3-NAME = Last Update Time
 
 CMD-NROOM-UPDATE-NAME = Force Update 
 CMD-NROOM-SETPOINT-NAME = Set Setpoint
