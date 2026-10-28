@@ -27,7 +27,7 @@ from udiNetatmoEnergyValve import udiNetatmoEnergyValve
 
 
 class udiNetatmoEnergyRoom(udi_interface.Node):
-    from udiNetatmoLib import bool2ISY, t_mode2ISY, update_ISY_data,  node_queue, wait_for_node_done, con_state2ISY, convert_temp_unit, ISY2sp_mode, ISY2op_mode
+    from udiNetatmoLib import bool2ISY, t_mode2ISY, update_ISY_data,  node_queue, wait_for_node_done, prepare_node_adr, con_state2ISY, convert_temp_unit, ISY2sp_mode, ISY2op_mode, apply_profile_driver_names
     def __init__(self, polyglot, primary, address, name, myNetatmo, home, room_id):
         super().__init__(polyglot, primary, address, name)
 
@@ -38,7 +38,6 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
         self.room_id = room_id
         self.node_ready = False
         self.n_queue = []
-        self.poly.subscribe(self.poly.ADDNODEDONE, self.node_queue)
         #self.module = {'module_id':module_info['main_module'], 'type':'MAIN', 'home_id':module_info['home'] }
         #logging.debug('self.module = {}'.format(self.module))
         self.id = 'ROOM'
@@ -52,6 +51,7 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
             {'driver' : 'GV3', 'value': 99,  'uom':25, 'name': 'Time Since Update'},      
             {'driver' : 'ST', 'value': 99,  'uom':25, 'name': 'Room State'}, 
             ]
+        self.apply_profile_driver_names()
         self.primary = primary
         self.address = address
         self.name = name
@@ -66,7 +66,6 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
         #self.poly.subscribe(self.poly.STOP, self.stop)
         self.poly.subscribe(self.poly.ADDNODEDONE, self.node_queue)
 
-        polyglot.ready()
         self.poly.addNode(self)
         self.wait_for_node_done()
         self.node_ready = True
@@ -86,6 +85,10 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
 
     def stop (self):
         pass
+
+    def setOffline(self):
+        if self.node is not None:
+            self.node.setDriver('ST', 0)
     
     def addNodes(self):
         '''addNodes'''
@@ -100,7 +103,7 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
                     valve_name = valve_info.get('name', valve_info['id'])
                     node_name = self.poly.getValidName(valve_name)
                     valve_id = valve_info['id']
-                    node_address = self.poly.getValidAddress(valve_id)
+                    node_address = self.poly.getValidAddress(self.prepare_node_adr(valve_id, 14))
                     logging.debug('adding valve node : {} {} {} {} {} {}'.format( self.primary, node_address, node_name, self.myNetatmo, self._home,  valve_id))
 
                     tmp_room = udiNetatmoEnergyValve(self.poly, self.primary, node_address, node_name, self.myNetatmo, self._home,  valve_id)

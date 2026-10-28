@@ -130,20 +130,22 @@ class NetatmoCloud(OAuth):
         oauthSettingsUpdate = {}
         # Example for a boolean field
 
-        if 'clientID' in userParams:
-            if self.customParameters['clientID'] != 'enter client_id':
-                self.client_ID = self.customParameters['clientID']
-                oauthSettingsUpdate['client_id'] = self.customParameters['clientID']
+        client_id_val = userParams.get('clientID') or userParams.get('ClientID')
+        if client_id_val:
+            if client_id_val != 'enter client_id':
+                self.client_ID = client_id_val
+                oauthSettingsUpdate['client_id'] = client_id_val
                 client_ok = True
         else:
             logging.warning('No clientID found')
             self.customParameters['clientID'] = 'enter client_id'
             self.client_ID = None
             
-        if 'clientSecret' in self.customParameters:
-            if self.customParameters['clientSecret'] != 'enter client_secret':
-                self.client_SECRET = self.customParameters['clientSecret'] 
-                oauthSettingsUpdate['client_secret'] = self.customParameters['clientSecret']
+        client_secret_val = self.customParameters['clientSecret'] if 'clientSecret' in self.customParameters else (self.customParameters['ClientSecret'] if 'ClientSecret' in self.customParameters else None)
+        if client_secret_val:
+            if client_secret_val != 'enter client_secret':
+                self.client_SECRET = client_secret_val 
+                oauthSettingsUpdate['client_secret'] = client_secret_val
                 secret_ok = True
         else:
             logging.warning('No clientSecret found')
@@ -523,254 +525,5 @@ class NetatmoCloud(OAuth):
         tmp = self._get_modules(home_id, self.GW_modules)
         logging.debug('get_GW_modules {}'.format(tmp))
         return(self._get_modules(home_id, self.GW_modules))
-    
-
-
-
-    def _get_energy_data(self, home_id, dev_id, mod_type):
-        '''Get data function'''
-        if home_id in self.energy_data:
-            if mod_type in self.energy_data[home_id]:
-                if dev_id in self.energy_data[home_id][mod_type]:
-                    return(self.energy_data[home_id][mod_type][dev_id])
-        else:
-            logging.warning('No data fouond for {0} {1}'.format(home_id, dev_id))
-    '''
-    def get_main_module_data(self, home_id, dev_id):
-        #Get data from main module
-        logging.debug('get_main_module_data')
-        #data_list = ['Temperature', 'CO2', 'Humidity', 'Noise', 'Pressure', 'AbsolutePressure', 'min_temp', 'max_temp', 'date_max_temp', 'date_min_temp', 'temp_trend', 'reachable']
-        return(self._get_energy_data(home_id, dev_id, 'GW'))
-    '''    
-
-    def get_module_data(self, module):
-        logging.debug('get_indoor_module_data')
-        #data_list = ['temperature', 'co2', 'humidity', 'last_seen', 'battery_state', 'ts']
-        return(self._get_energy_data(module['home_id'], module['module_id'], module['type']))
-               
-    '''
-    def get_outdoor_module_data(self, home_id, dev_id=None):
-        logging.debug('get_outdoor_module_data')
-        #data_list = ['temperature', 'co2', 'humidity', 'last_seen', 'battery_state', 'ts']
-        return(self._get_energy_data(home_id, dev_id, 'OUTDOOR'))
-
-    def get_rain_module_data(self, home_id, dev_id=None):
-        logging.debug('get_rain_module_data')
-        #data_list = ['rain', 'sum_rain_1', 'sum_rail_24', 'last_seen', 'battery_state', 'ts']
-        return(self._get_energy_data(home_id, dev_id, 'RAIN'))
-
-    def get_wind_module_data(self, home_id, dev_id=None):
-        logging.debug('get_wind_module_data')
-        #data_list = ['wind_strength', 'wind_angle', 'wind+gust', 'wind_gust_angle', 'last_seen', 'battery_state', 'ts']
-        return(self._get_energy_data(home_id, dev_id, 'WIND'))
-    '''
-
-    def get_temperature_C(self, module):
-        try:
-            logging.debug('get_temperature_C {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['temperature'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['temperature'])       
-        except Exception as e:
-            logging.error('get_temperature_C exception; {}'.format(e))
-            return(None)
-    def get_max_temperature_C (self, module):
-        try:
-            logging.debug('get_max_temperature_C {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['max_temp'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['max_temp'])       
-        except Exception as e:
-            logging.error('get_max_temperature_C exception; {}'.format(e))
-            return(None)
-
-    def get_min_temperature_C(self, module):
-        try:
-            logging.debug('get_min_temperature_C {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['min_temp'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['min_temp'])       
-        except Exception as e:
-            logging.error('get_min_temperature_C exception; {}'.format(e))
-            return(None)
-
-    def get_co2(self, module):
-        try:
-            logging.debug('get_co2 {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['co2'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['co2'])       
-        except Exception as e:
-            logging.error('get_co2 exception; {}'.format(e))
-            return(None)
-
-    def get_noise(self, module):
-        try:
-            logging.debug('get_noise {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['noise'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['noise'])       
-        except Exception as e:
-            logging.error('get_co2 exception; {}'.format(e))
-            return(None)
-        
-    def get_humidity(self, module):
-        try:
-            logging.debug('get_humidity {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['humidity'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['humidity'])       
-        except Exception as e:
-            logging.error('get_humidity exception; {}'.format(e))
-            return(None)
-
-    def get_pressure(self, module):
-        try:
-            logging.debug('get_pressure {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['pressure'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['pressure'])       
-        except Exception as e:
-            logging.error('get_pressure exception; {}'.format(e))
-            return(None)
-
-    def get_abs_pressure(self, module):
-        try:
-            logging.debug('get_abs_pressure {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['absolute_pressure'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['absolute_pressure'])       
-        except Exception as e:
-            logging.error('absolute_pressure exception; {}'.format(e))
-            return(None)        
-
-    def get_time_stamp(self, module):
-        try:
-            logging.debug('get_time_stamp {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['time_stamp'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['time_stamp'])       
-        except Exception as e:
-            logging.error('get_time_stamp exception: {}'.format(e))
-            return(None)        
-             
-    def get_time_since_time_stamp_min(self, module):
-        unix_timestamp = datetime.now(timezone.utc).timestamp()
-        meas_time = self.get_time_stamp(module)        
-        delay = unix_timestamp - meas_time
-        return( round(delay/60, 2)) #delay min
-
-    def get_temp_trend(self, module):
-        try:
-            trend = self.energy_data[module['home_id']][module['type']][module['module_id']]['temp_trend']
-            return(trend)       
-        except Exception as e:
-            logging.error('get_temp_trend exception; {}'.format(e))
-            return( None)
-    
-    def get_hum_trend(self, module):
-        try:
-            trend = self.energy_data[module['home_id']][module['type']][module['module_id']]['pressure_trend']
-   
-        except Exception as e:
-            logging.error('get_hum_trend exception; {}'.format(e))
-            return( None, None)
-        
-
-    def get_rain(self, module):
-        try:
-            logging.debug('get_rain {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['rain'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['rain'])       
-        except Exception as e:
-            logging.error('get_rain exception; {}'.format(e))
-            return(None)      
-
-    def get_rain_1hour(self, module):
-        try:
-            logging.debug('get_rain_1hour {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['sum_rain_1'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['sum_rain_1'])       
-        except Exception as e:
-            logging.error('get_rain_1hour {}'.format(e))
-            return(None)  
-    
-    def get_rain_24hours(self, module):
-        try:
-            logging.debug('get_rain_24hours {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['sum_rain_24'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['sum_rain_24'])       
-        except Exception as e:
-            logging.error('get_rain_24hours exception; {}'.format(e))
-            return(None)  
-
-    def get_wind_angle(self, module):
-        try:
-            logging.debug('get_wind_angle {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['windangle'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['windangle'])       
-        except Exception as e:
-            logging.error('get_wind_angle exception; {}'.format(e))
-            return(None)  
-
-    def get_wind_strength(self, module):
-        try:
-            logging.debug('get_wind_strength {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['windstrength'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['windstrength'])       
-        except Exception as e:
-            logging.error('get_wind_strength exception; {}'.format(e))
-            return(None)  
-
-    def get_gust_angle(self, module):
-        try:
-            logging.debug('get_wind_angle {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['gustangle'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['gustangle'])       
-        except Exception as e:
-            logging.error('get_wind_angle exception; {}'.format(e))
-            return(None)  
-
-    def get_gust_strength(self, module):
-        try:
-            logging.debug('get_wind_strength {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['guststrength'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['guststrength'])       
-        except Exception as e:
-            logging.error('get_wind_strength exception; {}'.format(e))
-            return(None)  
-        
-    def get_max_wind_angle(self, module):
-        try:
-            logging.debug('get_wind_angle {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['max_wind_angle'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['max_wind_angle'])       
-        except Exception as e:
-            logging.error('get_wind_angle exception; {}'.format(e))
-            return(None)  
-
-    def get_max_wind_strength(self, module):
-        try:
-            logging.debug('get_wind_strength {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['max_wind_str'],module['home_id'], module['type'], module['module_id'] ))
-            return(self.energy_data[module['home_id']][module['type']][module['module_id']]['max_wind_str'])       
-        except Exception as e:
-            logging.error('get_wind_strength exception; {}'.format(e))
-            return(None)          
-
-    def get_battery_info(self, module):
-        try:
-            bat1 = self.energy_data[module['home_id']][module['type']][module['module_id']]['battery_state']
-            bat2 = self.energy_data[module['home_id']][module['type']][module['module_id']]['battery_level']
-            return (bat1, bat2)
-        except Exception as e:
-            logging.error('get_battery_info exception: {}'.format(e))
-            return( None, None)
-        
-    def get_rf_info(self, module):
-        try:
-            rf1 = None
-            rf2 = None
-            if 'rf_state' in self.energy_data[module['home_id']][module['type']][module['module_id']]:
-                rf1 = self.energy_data[module['home_id']][module['type']][module['module_id']]['rf_state']               
-            if 'wifi_state' in self.energy_data[module['home_id']][module['type']][module['module_id']]:
-                rf1 = self.energy_data[module['home_id']][module['type']][module['module_id']]['wifi_state']
-            if 'rf_strength' in self.energy_data[module['home_id']][module['type']][module['module_id']]:
-                rf2 = -self.energy_data[module['home_id']][module['type']][module['module_id']]['rf_strength']
-            if 'wifi_strength' in self.energy_data[module['home_id']][module['type']][module['module_id']]:
-                rf2 = -self.energy_data[module['home_id']][module['type']][module['module_id']]['wifi_strength']           
-            return(rf1, rf2)
-        except Exception as e:
-            logging.error('get_rf_info exception; {}'.format(e))
-            return(None, None)
-
-    def get_online(self, module):
-        try:
-            #logging.debug('module {} '.format(module) )
-            #logging.debug('module data1: {}'.format(self.energy_data))
-            #logging.debug('module data2: {} - {} - {}'.format(module['home_id'], module['type'],module['module_id']))
-            #logging.debug('module data3: {}'.format(self.energy_data[module['home_id']]))
-            #logging.debug('module data4: {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]))
-            #logging.debug('get_online {} {} {} {}'.format(self.energy_data[module['home_id']][module['type']][module['module_id']]['online'],module['home_id'], module['type'], module['module_id'] ))
-            if 'online' in self.energy_data[module['home_id']][module['type']][module['module_id']]:    
-                return(self.energy_data[module['home_id']][module['type']][module['module_id']]['online'])
-            else:
-                return(False)      
-        except Exception as e:
-            logging.warning('No online data exists - Assume off line : {} - {}'.format(e, module))
-            return(False)
 
 

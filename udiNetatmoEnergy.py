@@ -36,7 +36,7 @@ version = '0.1.8'
 #        ]
 
 class NetatmoController(udi_interface.Node):
-    from udiNetatmoLib import bool2ISY, t_mode2ISY, node_queue, wait_for_node_done, con_state2ISY, convert_temp_unit, heartbeat
+    from udiNetatmoLib import bool2ISY, t_mode2ISY, node_queue, wait_for_node_done, prepare_node_adr, con_state2ISY, convert_temp_unit, heartbeat, apply_profile_driver_names, update_dynamic_profile
 
     def __init__(self, polyglot, primary, address, name):
         super(NetatmoController, self).__init__(polyglot, primary, address, name)
@@ -46,6 +46,7 @@ class NetatmoController(udi_interface.Node):
 
         self.id = 'CONTROLLER'
         self.drivers =  [ {'driver': 'ST', 'value':0, 'uom':25, 'name': 'NodeServer State'}, ]
+        self.apply_profile_driver_names()
         self.accessTokenEn = True
         self.accessToken = None
         self.nodeDefineDone = False
@@ -84,7 +85,7 @@ class NetatmoController(udi_interface.Node):
         self.node = self.poly.getNode(self.address)
         #logging.debug('testing 5')
         self.nodes_in_db = self.poly.getNodesFromDb()
-        self.poly.updateProfile()
+        # Dynamic profile is loaded once configuration is done in start()
         self.poly.ready()
        
 
@@ -95,6 +96,13 @@ class NetatmoController(udi_interface.Node):
         #self.myNetatmo = NetatmoWeather(self.poly)
         #self.accessToken = self.myNetatmo.getAccessToken()
         #logging.debug('Waiting start: {} {} {}'.format(self.configDone, self.myNetatmo.customParamsDone(), self.myNetatmo.customNsDone()))
+        while not self.configDone:
+            time.sleep(1)
+            logging.debug('Waiting for PG3x CONFIGDONE to complete')
+
+        # Load dynamic profile as soon as PG3x initialization (CONFIGDONE) is complete
+        self.update_dynamic_profile(self.myNetatmo.temp_unit)
+
         while not (self.configDone and self.myNetatmo.customParamsDone() and self.myNetatmo.customNsDone()):
         #while not (self.configDone):
             time.sleep(2)
@@ -103,6 +111,8 @@ class NetatmoController(udi_interface.Node):
         #if self.refreshToken and self.client_ID and self.client_SECRET:
         #    self.myNetatmo._insert_refreshToken(self.refreshToken, self.client_ID, self.client_SECRET)
         #    logging.debug('AccessToken = {}'.format(self.accessToken))
+
+        self.update_dynamic_profile(self.myNetatmo.temp_unit)
 
             
         while not self.myNetatmo.authendicated():
@@ -128,7 +138,7 @@ class NetatmoController(udi_interface.Node):
                 self.home_list.append(home)
                 logging.info('Adding {} to node new'.format(home['name']))                
             else:
-                if self.myNetatmo.customParameters[home['name']] == 1:
+                if int(self.myNetatmo.customParameters[home['name']]) == 1:
                     self.home_list.append(home)
                     logging.info('Adding {} to node'.format(home['name']))
    
@@ -142,7 +152,6 @@ class NetatmoController(udi_interface.Node):
         for home in self.home_list:
             self.myNetatmo.get_home_status(home['id'])
         self.addNodes()
-        self.wait_for_node_done()
 
 
     def addNodes(self):
@@ -150,7 +159,7 @@ class NetatmoController(udi_interface.Node):
         logging.info('Adding rooms of selected homes')
         selected = False
         #primary_gateway_list = ['NAPlug'] # controller is there for sure 
-        primary_node_list = [self.address]
+        node_adr_list = [self.address]
         for indx in range(0,len(self.home_list)):
             home = self.home_list[indx]
             logging.debug('Adding energy rooms  {}'.format(home))
@@ -166,15 +175,17 @@ class NetatmoController(udi_interface.Node):
                                 #logging.debug('Parsing valves {} {}'.format(mod_id,home['modules'][mod_idx] ))
                                 if home['modules'][mod_idx]['id'] == mod_id and home['modules'][mod_idx]['type'] in ('NRV', 'NATherm1', 'OTM', 'BNS'):
                                     valve_found = True
+                                    valve_adr = self.poly.getValidAddress(self.prepare_node_adr(mod_id, 14))
+                                    node_adr_list.append(valve_adr)
                     if valve_found:
                         room_name = self.poly.getValidName(room['name'])
                         node_name = home_name+'-'+room_name
                         #self.room_id = room['id']
-                        room_node = 'room'+str(room['id'])
+                        room_node = 'room'+self.prepare_node_adr(room['id'], 10)
                         node_address = self.poly.getValidAddress(room_node)
                         logging.debug('adding room node : {} {} {} {} {} {}'.format(node_address, node_address, node_name,  self.myNetatmo, home, room['id']))
                         temp = udiNetatmoEnergyRoom(self.poly, node_address, node_address, node_name,  self.myNetatmo, home, room['id'])
-                        primary_node_list.append(node_address)
+                        node_adr_list.append(node_address)
                         while not temp.node_ready:
                             logging.debug( 'Waiting for node {}-{} to be ready'.format(home['id'], node_name))
                             time.sleep(2)
@@ -183,13 +194,16 @@ class NetatmoController(udi_interface.Node):
         while not self.configDone:
             logging.info('Waiting for config to comlete')
             time.sleep(1)
-        #ogging.debug('Checking for nodes not used - node list {} - {} {}'.format(primary_node_list, len(self.nodes_in_db), self.nodes_in_db))
+        #logging.debug('Checking for nodes not used - node list {} - {} {}'.format(node_adr_list, len(self.nodes_in_db), self.nodes_in_db))
         for nde in range(0, len(self.nodes_in_db)):
             node = self.nodes_in_db[nde]
 
             logging.debug('Scanning db for extra nodes : {}'.format(node))
-            if node['primaryNode'] not in primary_node_list:
-                logging.debug('Removing node : {} {}'.format(node['name'], node))
+            if node['primaryNode'] not in node_adr_list:
+                logging.debug('Removing primary node : {} {}'.format(node['name'], node))
+                self.poly.delNode(node['address'])
+            elif node['address'] not in node_adr_list:
+                logging.debug('Removing sub node : {} {}'.format(node['name'], node))
                 self.poly.delNode(node['address'])
 
         self.nodeDefineDone = True
@@ -204,12 +218,14 @@ class NetatmoController(udi_interface.Node):
 
     def configDoneHandler(self):
         # We use this to discover devices, or ask to authenticate if user has not already done so
-        self.poly.Notices.clear()
+        if self.myNetatmo.customParamsDone():
+            self.poly.Notices.clear()
         logging.info('configDoneHandler called')
         #self.myNetatmo.updateOauthConfig()
         self.nodes_in_db = self.poly.getNodesFromDb()
         logging.debug('Nodes in Nodeserver - before cleanup: {} - {}'.format(len(self.nodes_in_db),self.nodes_in_db))
         self.configDone = True
+        self.update_dynamic_profile(self.myNetatmo.temp_unit)
         
         #res = self.myNetatmo.get_home_info()
         #logging.debug('retrieved get_home_info data {}'.format(res))
@@ -229,12 +245,18 @@ class NetatmoController(udi_interface.Node):
         try:
             self.node.setDriver('ST', 1, True, True)
         except Exception:
-            logging.error('eISY/Polisy aopears offline')
+            logging.error('eISY/Polisy appears offline')
+            self.node.setDriver('ST', 0, True, True)
+
+    def setOffline(self):
+        if self.node is not None:
             self.node.setDriver('ST', 0, True, True)
 
 
     def systemPoll (self, polltype):
-        #if self.nodeDefineDone:
+        if not self.nodeDefineDone:
+            logging.info('System Poll - Waiting for all nodes to be added')
+            return
         logging.info('System Poll executing: {}'.format(polltype))
         nodes = self.poly.nodes()
         if nodes:
@@ -246,8 +268,8 @@ class NetatmoController(udi_interface.Node):
                     
                     #self.myNetatmo.refresh_token()
                     self.myNetatmo.get_homes_info()
-                    for home_id in self.myNetatmo.homes_list:
-                        self.myNetatmo.get_home_status(home_id)
+                    for home in self.home_list:
+                        self.myNetatmo.get_home_status(home['id'])
                         #self.myNetatmo.update_weather_info_instant(home)
 
 
@@ -260,8 +282,8 @@ class NetatmoController(udi_interface.Node):
                 if 'shortPoll' in polltype:
                     self.heartbeat()
                     #self.myNetatmo.refresh_token()
-                    for home_id in self.myNetatmo.homes_list:
-                        self.myNetatmo.get_home_status(home_id)
+                    for home in self.home_list:
+                        self.myNetatmo.get_home_status(home['id'])
                     for nde in nodes:
                         if nde.address != 'controller':   # but not the setup node
                             logging.debug('updating node {} data'.format(nde))
@@ -269,9 +291,6 @@ class NetatmoController(udi_interface.Node):
             except Exception as e:
                     logging.error('Exeption occcured : {}'.format(e))
     
-                
-        #else:
-        #    logging.info('System Poll - Waiting for all nodes to be added')
  
 
     def stopHandler(self):
@@ -309,9 +328,6 @@ if __name__ == "__main__":
 
         # subscribe to the events we want
         # polyglot.subscribe(polyglot.POLL, pollHandler)
-
-        # We can start receive events
-        polyglot.ready()
 
         # Just sit and wait for events
         polyglot.runForever()

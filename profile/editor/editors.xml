@@ -5,6 +5,7 @@
 
     <editor id="BOOL">
         <range uom="2" subset="0,1" />
+        <range uom="25" subset="99" nls="ERROR" />
     </editor>
 
       <editor id="CONNECT">
@@ -51,7 +52,7 @@
     </editor>
 
     <editor id="BATTERY">
-        <range uom="25" subset="0-6,99" nls="BATTERY" />
+        <range uom="25" subset="0-5,99" nls="BATTERY" />
     </editor>
 
 

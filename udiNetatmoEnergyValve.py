@@ -26,7 +26,7 @@ except ImportError:
 
 
 class udiNetatmoEnergyValve(udi_interface.Node):
-    from udiNetatmoLib import bool2ISY, t_mode2ISY, update_ISY_data, node_queue, wait_for_node_done, battery2ISY, con_state2ISY
+    from udiNetatmoLib import bool2ISY, t_mode2ISY, update_ISY_data, node_queue, wait_for_node_done, battery2ISY, con_state2ISY, apply_profile_driver_names
 
     def __init__(self, polyglot, primary, address, name, myNetatmo, home,  valve_id):
         super().__init__(polyglot, primary, address, name)
@@ -47,12 +47,12 @@ class udiNetatmoEnergyValve(udi_interface.Node):
             {'driver' : 'GV1', 'value': 99,  'uom':25, 'name': 'RF Strength'},       
             {'driver' : 'ST', 'value': 99,  'uom':25, 'name': 'Valve State'}, 
             ]
+        self.apply_profile_driver_names()
 
         self.node_ready = False
         self.poly.subscribe(self.poly.START, self.start, address)
         #self.poly.subscribe(self.poly.STOP, self.stop)
         self.poly.subscribe(self.poly.ADDNODEDONE, self.node_queue)
-        self.poly.ready()
         self.poly.addNode(self)
         self.wait_for_node_done()
         self.node = self.poly.getNode(address)
@@ -69,6 +69,10 @@ class udiNetatmoEnergyValve(udi_interface.Node):
     def start(self):
         logging.debug('Executing udiNetatmoEnergyValve start')
         self.updateISYdrivers()        
+
+    def setOffline(self):
+        if self.node is not None:
+            self.node.setDriver('ST', 0)        
 
 
    

@@ -8,18 +8,382 @@ except ImportError:
     logging.basicConfig(level=logging.INFO)
 
 from os import truncate
+from pathlib import Path
+import xml.etree.ElementTree as ET
 #import udi_interface
 #import sys
 import time
 import math
 
+
+def _profile_editors(temp_unit: str = "C") -> list:
+    is_fahrenheit = str(temp_unit or "C").strip().upper().startswith("F")
+    temp_ranges = (
+        [
+            {"uom": "17", "min": -50, "max": 150, "prec": 1},
+            {"uom": "4", "min": -50, "max": 65, "prec": 1},
+            {"uom": "25", "subset": "0,99", "names": {"0": "No support", "99": "Unknown"}},
+        ]
+        if is_fahrenheit
+        else [
+            {"uom": "4", "min": -50, "max": 65, "prec": 1},
+            {"uom": "17", "min": -50, "max": 150, "prec": 1},
+            {"uom": "25", "subset": "0,99", "names": {"0": "No support", "99": "Unknown"}},
+        ]
+    )
+    set_temp_ranges = (
+        [
+            {"uom": "17", "min": 41, "max": 95, "step": 0.5, "prec": 1},
+            {"uom": "4", "min": 5, "max": 35, "step": 0.5, "prec": 1},
+        ]
+        if is_fahrenheit
+        else [
+            {"uom": "4", "min": 5, "max": 35, "step": 0.5, "prec": 1},
+            {"uom": "17", "min": 41, "max": 95, "step": 0.5, "prec": 1},
+        ]
+    )
+    return [
+        {
+            "id": "STATUS",
+            "ranges": [{"uom": "25", "subset": "0,1"}],
+        },
+        {
+            "id": "BOOL",
+            "ranges": [
+                {"uom": "2", "subset": "0,1"},
+                {"uom": "25", "subset": "99", "names": {"99": "Unknown"}},
+            ],
+        },
+        {
+            "id": "CONNECT",
+            "ranges": [
+                {
+                    "uom": "25",
+                    "subset": "0-1,99",
+                    "names": {"0": "Not Connected", "1": "Connected", "99": "Unknown"},
+                }
+            ],
+        },
+        {
+            "id": "TEMPERATURE",
+            "ranges": temp_ranges,
+        },
+        {
+            "id": "SETTEMP",
+            "ranges": set_temp_ranges,
+        },
+        {
+            "id": "TTIMESTAMP",
+            "ranges": [
+                {"uom": "44", "min": 0, "max": 525600, "prec": 1},
+                {"uom": "25", "subset": "99", "names": {"99": "Unknown"}},
+            ],
+        },
+        {
+            "id": "TCTRLMODE",
+            "ranges": [
+                {
+                    "uom": "25",
+                    "subset": "0-3,99",
+                    "names": {
+                        "0": "Schedule",
+                        "1": "Away",
+                        "2": "Frost Guard",
+                        "3": "Manual",
+                        "99": "Unknown",
+                    },
+                }
+            ],
+        },
+        {
+            "id": "SETCLIMD",
+            "ranges": [
+                {
+                    "uom": "25",
+                    "subset": "0-2",
+                    "names": {
+                        "0": "Schedule",
+                        "1": "Away",
+                        "2": "Frost Guard",
+                    },
+                }
+            ],
+        },
+        {
+            "id": "ENERGYREQ",
+            "ranges": [
+                {"uom": "0", "min": 0, "max": 10000},
+                {"uom": "25", "subset": "0,99", "names": {"0": "No support", "99": "Unknown"}},
+            ],
+        },
+        {
+            "id": "THMODE",
+            "ranges": [
+                {
+                    "uom": "25",
+                    "subset": "0-1",
+                    "names": {"0": "Manual", "1": "Home/Schedule"},
+                }
+            ],
+        },
+        {
+            "id": "TMIN",
+            "ranges": [{"uom": "44", "min": 0, "max": 120, "prec": 0}],
+        },
+        {
+            "id": "BATTERY",
+            "ranges": [
+                {
+                    "uom": "25",
+                    "subset": "0-5,99",
+                    "names": {
+                        "0": "Maximum",
+                        "1": "Full",
+                        "2": "High",
+                        "3": "Medium",
+                        "4": "Low",
+                        "5": "Very Low",
+                        "99": "Unknown",
+                    },
+                }
+            ],
+        },
+        {
+            "id": "BATVALUE",
+            "ranges": [
+                {"uom": "72", "min": 0, "max": 7, "prec": 2},
+                {"uom": "25", "subset": "0,99", "names": {"0": "No support", "99": "Unknown"}},
+            ],
+        },
+        {
+            "id": "RFSTRENGTH",
+            "ranges": [
+                {"uom": "131", "min": -100, "max": 174},
+                {"uom": "25", "subset": "0,99", "names": {"0": "No support", "99": "Unknown"}},
+            ],
+        },
+    ]
+
+
+def _dynamic_profile_payload(temp_unit: str = "C") -> dict:
+    return {
+        "delete": {
+            "editors": ["*"],
+            "nodedefs": ["*"],
+            "linkdefs": ["*"],
+        },
+        "editors": _profile_editors(temp_unit),
+        "nodedefs": [
+            {
+                "id": "CONTROLLER",
+                "name": "Netatmo Energy System",
+                "icon": "EnergyMonitor",
+                "properties": [
+                    {"id": "ST", "editor": "CONNECT", "name": "NodeServer State"},
+                ],
+                "cmds": {
+                    "sends": [
+                        {"id": "DON"},
+                        {"id": "DOF"},
+                    ],
+                    "accepts": [
+                        {"id": "UPDATE", "name": "Force Update"},
+                    ],
+                },
+                "links": {"ctl": [], "rsp": []},
+            },
+            {
+                "id": "ROOM",
+                "name": "Room",
+                "icon": "Thermostat",
+                "properties": [
+                    {"id": "ST", "editor": "CONNECT", "name": "Room State"},
+                    {"id": "CLITEMP", "editor": "TEMPERATURE", "name": "Temperature"},
+                    {"id": "CLISPH", "editor": "TEMPERATURE", "name": "Set Point"},
+                    {"id": "CLIMD", "editor": "TCTRLMODE", "name": "Mode"},
+                    {"id": "GV0", "editor": "ENERGYREQ", "name": "Energy Request"},
+                    {"id": "GV1", "editor": "BOOL", "name": "Window Open"},
+                    {"id": "GV2", "editor": "BOOL", "name": "Predictive"},
+                    {"id": "GV3", "editor": "TTIMESTAMP", "name": "Time Since Update"},
+                ],
+                "cmds": {
+                    "sends": [],
+                    "accepts": [
+                        {"id": "UPDATE", "name": "Force Update"},
+                        {
+                            "id": "SETPOINT",
+                            "name": "Set Setpoint",
+                            "parameters": [
+                                {"id": "STEMP", "name": "Setpoint temp", "editor": "SETTEMP", "init": "CLISPH"},
+                                {"id": "SPMODE", "name": "Setpoint mode", "editor": "THMODE", "init": "0"},
+                                {"id": "ACTIVET", "name": "Active time", "editor": "TMIN", "init": "0"},
+                            ],
+                        },
+                        {
+                            "id": "OPMODE",
+                            "name": "Set Mode",
+                            "parameters": [
+                                {"id": "OPMODE", "name": "Operation mode", "editor": "SETCLIMD", "init": "CLIMD"},
+                                {"id": "ACTIVET", "name": "Active time", "editor": "TMIN", "init": "0"},
+                            ],
+                        },
+                    ],
+                },
+                "links": {"ctl": [], "rsp": []},
+            },
+            {
+                "id": "VALVE",
+                "name": "Valve",
+                "icon": "Thermostat",
+                "properties": [
+                    {"id": "ST", "editor": "CONNECT", "name": "Valve State"},
+                    {"id": "GV0", "editor": "BATTERY", "name": "Battery Level"},
+                    {"id": "GV1", "editor": "RFSTRENGTH", "name": "RF Strength"},
+                    {"id": "GV2", "editor": "BATVALUE", "name": "Battery Reading"},
+                ],
+                "cmds": {
+                    "sends": [],
+                    "accepts": [
+                        {"id": "UPDATE", "name": "Force Update"},
+                    ],
+                },
+                "links": {"ctl": [], "rsp": []},
+            },
+        ],
+        "linkdefs": [],
+    }
+
+
+def _load_driver_names_from_profile_dir(profile_dir: Path, nodedef_id: str) -> dict:
+    """Parse driver names from a static profile directory (nodedef + NLS files) if present."""
+    names = {}
+    target_id = str(nodedef_id or "").strip().upper()
+    if not target_id or not profile_dir.is_dir():
+        return names
+
+    nls_prefix = None
+    nodedef_dir = profile_dir / "nodedef"
+    if nodedef_dir.is_dir():
+        for xml_file in nodedef_dir.glob("*.xml"):
+            try:
+                root = ET.parse(xml_file).getroot()
+                for nd in root.findall(".//nodeDef"):
+                    nd_id = (nd.attrib.get("id") or "").strip().upper()
+                    if nd_id == target_id:
+                        nls_prefix = (nd.attrib.get("nls") or "").strip().upper()
+                        break
+            except Exception as err:
+                logging.debug("Failed to read nodedef file {}: {}".format(xml_file, err))
+
+    nls_dir = profile_dir / "nls"
+    if nls_dir.is_dir():
+        for nls_file in nls_dir.glob("*.txt"):
+            try:
+                for line in nls_file.read_text(encoding="utf-8", errors="ignore").splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    key, val = [part.strip() for part in line.split("=", 1)]
+                    parts = [p.strip().upper() for p in key.split("-")]
+                    if len(parts) >= 4 and parts[0] == "ST" and parts[-1] == "NAME":
+                        if nls_prefix and parts[1] == nls_prefix:
+                            names[parts[2]] = val
+                        elif parts[1] == target_id:
+                            names.setdefault(parts[2], val)
+                    elif len(parts) >= 4 and parts[0] == "ND" and parts[1] == target_id and parts[-1] == "NAME":
+                        names[parts[2]] = val
+            except Exception as err:
+                logging.debug("Failed to read NLS file {}: {}".format(nls_file, err))
+    return names
+
+
+def _load_driver_names_from_dynamic_profile(nodedef_id: str, temp_unit: str = "C") -> dict:
+    """Extract driver human-readable names from the dynamic profile generated in code."""
+    target_id = str(nodedef_id or "").strip().upper()
+    payload = _dynamic_profile_payload(temp_unit)
+    for nd in payload.get("nodedefs", []):
+        if str(nd.get("id", "")).strip().upper() == target_id:
+            return {
+                prop["id"]: prop.get("name", prop["id"])
+                for prop in nd.get("properties", [])
+                if "id" in prop
+            }
+    return {}
+
+
+def get_driver_names_from_profile(nodedef_id: str, temp_unit: str = "C") -> dict:
+    """Retrieve driver names from the profile directory or dynamic profile generated in code."""
+    profile_dir = Path(__file__).resolve().parent / "profile"
+    if profile_dir.is_dir():
+        names = _load_driver_names_from_profile_dir(profile_dir, nodedef_id)
+        if names:
+            return names
+    return _load_driver_names_from_dynamic_profile(nodedef_id, temp_unit)
+
+
+def apply_profile_driver_names(self, nodedef_id: str = None) -> None:
+    """Synchronize driver['name'] fields on self.drivers from profile definitions."""
+    target_id = (nodedef_id or getattr(self, "id", "") or "").strip()
+    drivers = getattr(self, "drivers", None)
+    if not target_id or not isinstance(drivers, list):
+        return
+    profile_names = get_driver_names_from_profile(target_id)
+    for drv in drivers:
+        if isinstance(drv, dict) and drv.get("driver"):
+            label = profile_names.get(drv["driver"])
+            if label:
+                drv["name"] = label
+
+
+def update_dynamic_profile(self, temp_unit: str = "C", force: bool = False) -> bool:
+    """Publish dynamic JSON profile via updateJsonProfile after PG3x initialization."""
+    if not getattr(self, "configDone", False):
+        logging.info("Deferring dynamic profile load until PG3x completes initialization (CONFIGDONE)")
+        return False
+
+    payload = _dynamic_profile_payload(temp_unit)
+    last_payload = getattr(self, "_last_published_profile", None)
+    if not force and last_payload == payload:
+        logging.debug("Dynamic profile already up to date; skipping")
+        return True
+
+    updater = getattr(self.poly, "updateJsonProfile", None)
+    if callable(updater):
+        try:
+            updater(payload, {"waitResponse": True})
+            self._last_published_profile = payload
+            logging.info("Dynamic JSON profile updated successfully")
+            return True
+        except TypeError:
+            try:
+                updater(payload)
+                self._last_published_profile = payload
+                logging.info("Dynamic JSON profile updated successfully")
+                return True
+            except Exception as err:
+                logging.error("Dynamic profile update failed: {}".format(err))
+        except Exception as err:
+            logging.error("Dynamic profile update failed: {}".format(err))
+    else:
+        logging.warning("updateJsonProfile not available; falling back to static updateProfile()")
+        self.poly.updateProfile()
+        self._last_published_profile = payload
+    return False
+
 def node_queue(self, data):
-    self.n_queue.append(data['address'])
+    if isinstance(data, dict) and data.get('address') == getattr(self, 'address', None):
+        self.n_queue.append(data['address'])
 
 def wait_for_node_done(self):
     while len(self.n_queue) == 0:
         time.sleep(0.1)
     self.n_queue.pop()
+
+def prepare_node_adr(self, dev_adr, length):
+    dev_adr = str(dev_adr)
+    dev_adr = dev_adr.replace(':','')
+    dev_adr = dev_adr[-length:]
+    return(dev_adr)
 
 
 def heartbeat(self):
@@ -127,40 +491,12 @@ def con_state2ISY(self, state):
     return(con)
 
 def convert_temp_unit(self, tempStr):
-    if tempStr.capitalize()[:1] == 'F':
+    if str(tempStr).capitalize()[:1] == 'F':
         return(1)
-    elif tempStr.capitalize()[:1] == 'C':
+    elif str(tempStr).capitalize()[:1] == 'C':
         return(0)
-        
+    return(0)
 
-
-def mask2key (self, mask):
-    logging.debug('mask2key : {}'.format(mask))
-    return(int(round(math.log2(mask),0)))
-    
-def daysToMask (yolink, dayList):
-    daysValue = 0 
-    i = 0
-    for day in yolink.daysOfWeek:
-        if day in dayList:
-            daysValue = daysValue + pow(2,i)
-        i = i+1
-    return(daysValue)
-
-def maskToDays(yolink, daysValue):
-    daysList = []
-    for i in range(0,7):
-        mask = pow(2,i)
-        if (daysValue & mask) != 0 :
-            daysList.append(yolink.daysOfWeek[i])
-    return(daysList)
-
-
-def bool2Nbr(yolink, bool):
-    if bool:
-        return(1)
-    else:
-        return(0)
 
 def bool2ISY (self, data):
     if data:
@@ -181,218 +517,3 @@ def isy_value(self, value):
         return (99)
     else:
         return(value)
-    
-def daylist2bin(self, daylist):
-    sum = 0
-    if 'sun' in daylist:
-        sum = sum + 1
-    if 'mon' in daylist:
-        sum = sum + 2       
-    if 'tue' in daylist:
-        sum = sum + 4
-    if 'wed' in daylist:
-        sum = sum + 8
-    if 'thu' in daylist:
-        sum = sum + 16
-    if 'fri' in daylist:
-        sum = sum + 32
-    if 'sat' in daylist:
-        sum = sum + 64
-    return(sum)
-
-def prep_schedule(self, query):
-    logging.debug('prep_schedule {} '.format(query))
-    params = {}
-    onH = 25
-    onM = 0     
-    onS = 0
-    offH = 25
-    offM = 0   
-    offS = 0
-    include_sec = False
-    #query = command.get("query")
-    if 'port.uom25' in query:
-        port = int(query.get('port.uom25'))-1
-        params['ch'] = port
-    schedule_selected = int(query.get('index.uom25'))
-    tmp = int(query.get('active.uom25'))
-    activated = (tmp == 1)
-    if 'onH.uom19' in query:
-        onH = int(query.get('onH.uom19'))
-    if 'onM.uom44' in query:    
-        onM = int(query.get('onM.uom44'))
-    if 'offH.uom19' in query:
-        offH = int(query.get('offH.uom19'))
-    if 'offM.uom44' in query:    
-        offM = int(query.get('offM.uom44'))  
-    if 'onS.' in query:
-        include_sec = True
-        if 'onS.uom57' in query:            
-            onS = int(query.get('onS.uom57'))
-        else:
-            onS = 0
-    if 'offS.' in query:            
-        include_sec = True  
-        if 'offS.uom57' in query:            
-            offS = int(query.get('onS.uom57'))
-        else:
-            offS = 0
-          
-    binDays = int(query.get('bindays.uom25'))
-
-    
-    params['index'] = str(schedule_selected )
-    params['isValid'] = activated 
-    params['on'] = str(onH)+':'+str(onM)
-    params['off'] = str(offH)+':'+str(offM)
-    if include_sec:
-        params['on'] = params['on'] + ':' + str(onS)
-        params['off'] =  params['off'] + ':' + str(offS)
-
-    params['week'] = binDays
-    #self.yolink.setSchedule(self.schedule_selected, params)
-    return(schedule_selected, params)
-
-def activate_schedule(self, query):
-    logging.info('activate_schedule {}'.format(query))       
-    #query = command.get("query")
-    schedule_selected = int(query.get('index.uom25'))
-    tmp = int(query.get('active.uom25'))
-    activated = (tmp == 1)
-    #self.yolink.activateSchedule(schedule_selected, activated)
-    return(activated, schedule_selected)
-
-def check_name_in_drivers(self,  name):
-    logging.debug('check_name_in_drivers: {}'.format(name))
-    found = False
-    for drv in enumerate(self.node.drivers):
-        logging.debug('check_name_in_drivers: {}'.format(drv))
-        if drv['driver'] == name:
-            found = True
-    return(found)
-
-
-def update_schedule_data(self, sch_info, selected_schedule):
-    logging.info('update_schedule_data {}'.format(sch_info)) 
-
-    def check_name_in_drivers( name):
-        found = False
-        for indx, drv in enumerate(self.node.drivers):
-            if drv['driver'] == name:
-                found = True
-                return(found)
-        return(found)
-
-    if sch_info:
-        if 'ch' in sch_info:
-            self.node.setDriver('GV12', int(sch_info['ch']))
-
-        self.node.setDriver('GV13', selected_schedule)
-        if sch_info['isValid']:
-            self.node.setDriver('GV14', 1)
-        else:
-            self.node.setDriver('GV14', 0)
-        timestr = sch_info['on']
-        timelist =  timestr.split(':')
-        if len(timelist) == 2:
-            hour = int(timelist[0])
-            minute = int(timelist[1])
-            if hour == 25:
-                self.node.setDriver('GV15', 98,True, True, 25)
-                self.node.setDriver('GV16', 98,True, True, 25)
-            else:
-                self.node.setDriver('GV15', int(hour),True, True, 19)
-                self.node.setDriver('GV16', int(minute),True, True, 44)
-        elif len(timelist) == 3:
-            hour = int(timelist[0])
-            minute = int(timelist[1])
-            second = int(timelist[2])
-            if hour == 25:
-                self.node.setDriver('GV15', 98,True, True, 25)
-                self.node.setDriver('GV16', 98,True, True, 25)
-                self.node.setDriver('GV10', 98,True, True, 25)
-            else:
-                self.node.setDriver('GV15', hour,True, True, 19)
-                self.node.setDriver('GV16', minute,True, True, 44)
-                self.node.setDriver('GV10', second,True, True, 57)
-
-        timestr = sch_info['off']
-        logging.debug('timestr : {}'.format(timestr))
-        timelist =  timestr.split(':')
-        if len(timelist) == 2:
-            hour = int(timelist[0])
-            minute = int(timelist[1])
-            if hour == 25:
-                self.node.setDriver('GV17', 98,True, True, 25)
-                self.node.setDriver('GV18', 98,True, True, 25)
-            else:
-                self.node.setDriver('GV17', int(hour),True, True, 19)
-                self.node.setDriver('GV18', int(minute),True, True, 44)
-        elif len(timelist) == 3:
-            hour = int(timelist[0])
-            minute = int(timelist[1])
-            second = int(timelist[2])     
-            if hour == 25:
-                self.node.setDriver('GV17', 98,True, True, 25)
-                self.node.setDriver('GV18', 98,True, True, 25)
-                self.node.setDriver('GV11', 98,True, True, 25)
-            else:
-                self.node.setDriver('GV17', hour,True, True, 19)
-                self.node.setDriver('GV18', minute,True, True, 44)
-                self.node.setDriver('GV11', second,True, True, 57)
-        self.node.setDriver('GV19',  int(sch_info['week']))
-
-    else:
-        logging.debug('No schdule exist for the selected index')
-        if check_name_in_drivers('GV12'):
-            self.node.setDriver('GV12', 99, True, True, 25)
-        self.node.setDriver('GV13', selected_schedule) 
-        self.node.setDriver('GV14', 99)
-        self.node.setDriver('GV15', 99,True, True, 25)
-        self.node.setDriver('GV16', 99,True, True, 25)
-        self.node.setDriver('GV17', 99,True, True, 25)
-        self.node.setDriver('GV18', 99,True, True, 25)
-        self.node.setDriver('GV19', 0)
-        if check_name_in_drivers('GV10'):
-            self.node.setDriver('GV10', 99, True, True, 25)
-            self.node.setDriver('GV11', 99, True, True, 25)
-
-
-def send_rel_temp_to_isy(self, temperature, stateVar):
-    logging.debug('convert_temp_to_isy - {}'.format(temperature))
-    logging.debug('ISYunit={}, Mess_unit={}'.format(self.ISY_temp_unit , self.messana_temp_unit ))
-    if self.ISY_temp_unit == 0: # Celsius in ISY
-        if self.messana_temp_unit == 'Celsius' or self.messana_temp_unit == 0:
-            self.node.setDriver(stateVar, round(temperature,1), True, True, 4)
-        else: # messana = Farenheit
-            self.node.setDriver(stateVar, round(temperature*5/9,1), True, True, 17)
-    elif  self.ISY_temp_unit == 1: # Farenheit in ISY
-        if self.messana_temp_unit == 'Celsius' or self.messana_temp_unit == 0:
-            self.node.setDriver(stateVar, round((temperature*9/5),1), True, True, 4)
-        else:
-            self.node.setDriver(stateVar, round(temperature,1), True, True, 17)
-    else: # kelvin
-        if self.messana_temp_unit == 'Celsius' or self.messana_temp_unit == 0:
-            self.node.setDriver(stateVar, round((temperature,1), True, True, 4))
-        else:
-            self.node.setDriver(stateVar, round((temperature)*9/5,1), True, True, 17)
-
-
-def send_temp_to_isy (self, temperature, stateVar):
-    logging.debug('convert_temp_to_isy - {}'.format(temperature))
-    logging.debug('ISYunit={}, Mess_unit={}'.format(self.ISY_temp_unit , self.messana_temp_unit ))
-    if self.ISY_temp_unit == 0: # Celsius in ISY
-        if self.messana_temp_unit == 'Celsius' or self.messana_temp_unit == 0:
-            self.node.setDriver(stateVar, round(temperature,1), True, True, 4)
-        else: # messana = Farenheit
-            self.node.setDriver(stateVar, round((temperature-32)*5/9,1), True, True, 17)
-    elif  self.ISY_temp_unit == 1: # Farenheit in ISY
-        if self.messana_temp_unit == 'Celsius' or self.messana_temp_unit == 0:
-            self.node.setDriver(stateVar, round((temperature*9/5+32),1), True, True, 4)
-        else:
-            self.node.setDriver(stateVar, round(temperature,1), True, True, 17)
-    else: # kelvin
-        if self.messana_temp_unit == 'Celsius' or self.messana_temp_unit == 0:
-            self.node.setDriver(stateVar, round((temperature+273.15,1), True, True, 4))
-        else:
-            self.node.setDriver(stateVar, round((temperature+273.15-32)*9/5,1), True, True, 17)
