@@ -54,6 +54,16 @@ To allow the node server to communicate with your Netatmo account, you need a pe
 - **Short Poll (`shortPoll`)**: Default is **300 seconds (5 minutes)**. Polls current room temperatures, setpoints, modes, and valve status (`/homestatus`) and toggles the controller heartbeat (`DON`/`DOF`).
 - **Long Poll (`longPoll`)**: Default is **3600 seconds (60 minutes)**. Refreshes home layout (`/homesdata`) and updates all room and valve drivers.
 
+## Release Notes
+- **0.2.0**
+  - Added dynamic JSON profile loading (`updateJsonProfile`) after PG3x `CONFIGDONE` initialization.
+  - Updated all node definitions, editors, and NLS identifiers to uppercase alphanumeric and added human-readable driver names.
+  - Updated Room `GV3` (`TTIMESTAMP`) to report Last Update Time as a Unix timestamp (`uom=151`).
+  - Added support for Netatmo thermostat/gateway types (`NATherm1`, `OTH`, `OTM`, `BNS`) alongside `NRV` valves.
+  - Improved API error handling, stale/orphaned node cleanup, and added unit test suite (`run_tests.py`).
+- **0.1.8**
+  - Initial PG3x OAuth2 release.
+
 ## License
 MIT License
 

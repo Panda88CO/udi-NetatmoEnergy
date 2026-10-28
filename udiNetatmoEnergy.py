@@ -24,7 +24,7 @@ from NetatmoOauthEnergy import NetatmoCloud
 from  udiNetatmoEnergyRoom import udiNetatmoEnergyRoom
 #from nodes.controller import Controller
 #from udi_interface import logging, Custom, Interface
-version = '0.1.8'
+version = '0.2.0'
 
 #polyglot = None
 #myNetatmo = None

@@ -142,7 +142,7 @@ class MockPolyglot:
 
 
 def install_mock_udi_interface():
-    """Install mock udi_interface into sys.modules before importing plugin modules."""
+    """Install mock udi_interface (and fallback requests) into sys.modules."""
     logger = logging.getLogger("udi_NetatmoEnergy_test")
     logger.setLevel(logging.CRITICAL)
 
@@ -153,4 +153,28 @@ def install_mock_udi_interface():
     mod.OAuth = MockOAuth
     mod.Interface = MockPolyglot
     sys.modules["udi_interface"] = mod
+
+    try:
+        import requests  # noqa: F401
+    except ImportError:
+        req_mod = types.ModuleType("requests")
+        exc_mod = types.ModuleType("requests.exceptions")
+
+        class HTTPError(Exception):
+            pass
+
+        class JSONDecodeError(Exception):
+            pass
+
+        exc_mod.HTTPError = HTTPError
+        exc_mod.JSONDecodeError = JSONDecodeError
+        req_mod.exceptions = exc_mod
+        req_mod.get = lambda *a, **kw: None
+        req_mod.post = lambda *a, **kw: None
+        req_mod.patch = lambda *a, **kw: None
+        req_mod.delete = lambda *a, **kw: None
+        req_mod.put = lambda *a, **kw: None
+        sys.modules["requests"] = req_mod
+        sys.modules["requests.exceptions"] = exc_mod
+
     return mod
