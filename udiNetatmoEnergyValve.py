@@ -39,13 +39,13 @@ class udiNetatmoEnergyValve(udi_interface.Node):
         self.address = address
         self.name = name        
         self.n_queue = []
-        self.id = 'valve'
+        self.id = 'VALVE'
         self.drivers = [
 
-            {'driver' : 'GV0', 'value': 99,  'uom':25}, 
-            {'driver' : 'GV2', 'value': 99,  'uom':25}, 
-            {'driver' : 'GV1', 'value': 99,  'uom':25},       
-            {'driver' : 'ST', 'value': 99,  'uom':25}, 
+            {'driver' : 'GV0', 'value': 99,  'uom':25, 'name': 'Battery Level'}, 
+            {'driver' : 'GV2', 'value': 99,  'uom':25, 'name': 'Battery Reading'}, 
+            {'driver' : 'GV1', 'value': 99,  'uom':25, 'name': 'RF Strength'},       
+            {'driver' : 'ST', 'value': 99,  'uom':25, 'name': 'Valve State'}, 
             ]
 
         self.node_ready = False
@@ -81,9 +81,17 @@ class udiNetatmoEnergyValve(udi_interface.Node):
         if self.node is not None:
             if self.myNetatmo.get_valve_online(self.home_id, self.valve_id):
                 self.node.setDriver('ST',1)
-                self.node.setDriver('GV2', round(self.myNetatmo.get_valve_bat_level(self.home_id, self.valve_id)/1000, 2), True, True, 72)
+                bat_level = self.myNetatmo.get_valve_bat_level(self.home_id, self.valve_id)
+                if bat_level is not None:
+                    self.node.setDriver('GV2', round(bat_level/1000, 2), True, True, 72)
+                else:
+                    self.node.setDriver('GV2', 99, True, False, 25 )
                 self.node.setDriver('GV0', self.battery2ISY(self.myNetatmo.get_valve_bat_state(self.home_id, self.valve_id)))
-                self.node.setDriver('GV1', int(-self.myNetatmo.get_valve_rf_strength(self.home_id, self.valve_id)), True, True, 131)
+                rf_strength = self.myNetatmo.get_valve_rf_strength(self.home_id, self.valve_id)
+                if rf_strength is not None:
+                    self.node.setDriver('GV1', int(-rf_strength), True, True, 131)
+                else:
+                    self.node.setDriver('GV1', 99, True, False, 25 )
             else:
                 self.node.setDriver('GV2', 99, True, False, 25 )
                 self.node.setDriver('GV0', 99)
@@ -92,7 +100,7 @@ class udiNetatmoEnergyValve(udi_interface.Node):
                 
 
     def update(self, command = None):
-        self.myNetatmo.self.myNetatmo.get_home_status(self._home['id'])
+        self.myNetatmo.get_home_status(self._home['id'])
         self.update_ISY_data()
 
 

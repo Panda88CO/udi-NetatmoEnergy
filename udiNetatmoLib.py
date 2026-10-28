@@ -56,7 +56,7 @@ def ISY2sp_mode (self, mode_nbr):
         mode_str = 'manual'
     elif mode_nbr == 2:
         mode_str = 'max'
-    elif mode_str == 1:
+    elif mode_nbr == 1:
         mode_str = 'home'
     else:
         mode_str = 'unknown'+str(mode_nbr)
@@ -77,12 +77,14 @@ def rfstate2ISY(self, rf_state):
     return(rf)
 
 def t_mode2ISY(self, mode):
-    if mode == 'schedule':
+    if mode in ('schedule', 'home'):
         mod = 0
     elif mode =='away':
         mod = 1
     elif mode == 'hg':
         mod = 2
+    elif mode == 'manual':
+        mod = 3
     else:
         mod = 99
     return(mod)

@@ -115,7 +115,7 @@ class NetatmoEnergy(NetatmoCloud):
             found = False
             home_id = home['id']
             if 'modules' in home:   
-                for module in home['module']:
+                for module in home['modules']:
                     if module['type'] in self._dev_list:
                         found = True
             if found:

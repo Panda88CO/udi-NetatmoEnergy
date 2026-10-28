@@ -41,16 +41,16 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
         self.poly.subscribe(self.poly.ADDNODEDONE, self.node_queue)
         #self.module = {'module_id':module_info['main_module'], 'type':'MAIN', 'home_id':module_info['home'] }
         #logging.debug('self.module = {}'.format(self.module))
-        self.id = 'room'
+        self.id = 'ROOM'
         self.drivers = [
-            {'driver' : 'CLITEMP', 'value': 99,  'uom':25}, 
-            {'driver' : 'CLISPH', 'value': 99,  'uom':25}, 
-            {'driver' : 'CLIMD', 'value': 99,  'uom':25}, 
-            {'driver' : 'GV0', 'value': 99,  'uom':25}, 
-            {'driver' : 'GV1', 'value': 0,  'uom':2}, 
-            {'driver' : 'GV2', 'value': 0,  'uom':2}, 
-            {'driver' : 'GV3', 'value': 99,  'uom':25},      
-            {'driver' : 'ST', 'value': 99,  'uom':25}, 
+            {'driver' : 'CLITEMP', 'value': 99,  'uom':25, 'name': 'Temperature'}, 
+            {'driver' : 'CLISPH', 'value': 99,  'uom':25, 'name': 'Set Point'}, 
+            {'driver' : 'CLIMD', 'value': 99,  'uom':25, 'name': 'Mode'}, 
+            {'driver' : 'GV0', 'value': 99,  'uom':25, 'name': 'Energy Request'}, 
+            {'driver' : 'GV1', 'value': 0,  'uom':2, 'name': 'Window Open'}, 
+            {'driver' : 'GV2', 'value': 0,  'uom':2, 'name': 'Predictive'}, 
+            {'driver' : 'GV3', 'value': 99,  'uom':25, 'name': 'Time Since Update'},      
+            {'driver' : 'ST', 'value': 99,  'uom':25, 'name': 'Room State'}, 
             ]
         self.primary = primary
         self.address = address
@@ -96,8 +96,8 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
             for indx in range(0, len(self._home['modules'])):
                 valve_info = self._home['modules'][indx]
                 logging.debug('Valve check {} {}'.format( self.room_id, valve_info))
-                if valve_info['room_id'] == self.room_id and valve_info['type'] == 'NRV':
-                    valve_name = valve_info['name']
+                if valve_info.get('room_id') == self.room_id and valve_info.get('type') in ('NRV', 'NATherm1', 'OTM'):
+                    valve_name = valve_info.get('name', valve_info['id'])
                     node_name = self.poly.getValidName(valve_name)
                     valve_id = valve_info['id']
                     node_address = self.poly.getValidAddress(valve_id)
@@ -128,14 +128,32 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
             if self.myNetatmo.get_room_online(self.home_id, self.room_id):
                 self.node.setDriver('ST', 1)
                 logging.debug('TempUnit = {} {}'.format(self.myNetatmo.temp_unit, self.convert_temp_unit(self.myNetatmo.temp_unit)))
+                room_temp = self.myNetatmo.get_room_temp(self.home_id, self.room_id)
+                sp_temp = self.myNetatmo.get_room_setpoint_temp(self.home_id, self.room_id)
                 if self.convert_temp_unit(self.myNetatmo.temp_unit) == 0:
-                    self.node.setDriver('CLITEMP', round(self.myNetatmo.get_room_temp(self.home_id, self.room_id),1), True, False, 4 )
-                    self.node.setDriver('CLISPH', round(int(self.myNetatmo.get_room_setpoint_temp(self.home_id, self.room_id)*2)/2,1), True, False, 4 )
+                    if room_temp is not None:
+                        self.node.setDriver('CLITEMP', round(room_temp,1), True, False, 4 )
+                    else:
+                        self.node.setDriver('CLITEMP', 99, True, False, 25 )
+                    if sp_temp is not None:
+                        self.node.setDriver('CLISPH', round(int(sp_temp*2)/2,1), True, False, 4 )
+                    else:
+                        self.node.setDriver('CLISPH', 99, True, False, 25 )
                 else:
-                    self.node.setDriver('CLITEMP', round(int(2*(self.myNetatmo.get_room_temp(self.home_id, self.room_id)*9/5+32))/2,1), True, False, 17 )
-                    self.node.setDriver('CLISPH', round(int(2*(self.myNetatmo.get_room_setpoint_temp(self.home_id, self.room_id)*9/5+32))/2,0), True, False, 17 )
+                    if room_temp is not None:
+                        self.node.setDriver('CLITEMP', round(int(2*(room_temp*9/5+32))/2,1), True, False, 17 )
+                    else:
+                        self.node.setDriver('CLITEMP', 99, True, False, 25 )
+                    if sp_temp is not None:
+                        self.node.setDriver('CLISPH', round(int(2*(sp_temp*9/5+32))/2,0), True, False, 17 )
+                    else:
+                        self.node.setDriver('CLISPH', 99, True, False, 25 )
                 self.node.setDriver('CLIMD', self.t_mode2ISY(self.myNetatmo.get_room_setpoint_mode(self.home_id, self.room_id)))
-                self.node.setDriver('GV0', self.myNetatmo.get_room_heat_power_request(self.home_id, self.room_id), True, False, 0)
+                heat_req = self.myNetatmo.get_room_heat_power_request(self.home_id, self.room_id)
+                if heat_req is not None:
+                    self.node.setDriver('GV0', heat_req, True, False, 0)
+                else:
+                    self.node.setDriver('GV0', 99, True, False, 25)
                 self.node.setDriver('GV1', self.bool2ISY(self.myNetatmo.get_room_open_window(self.home_id, self.room_id)))
                 self.node.setDriver('GV2', self.bool2ISY(self.myNetatmo.get_room_anticipating(self.home_id, self.room_id)))
                 self.node.setDriver('GV3', int(self.myNetatmo.get_time_since_last_update_sec(self.home_id)/60), True, True, 44)
@@ -154,28 +172,29 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
 
 
     def set_setpoint(self, command):
-        #{'address': 'room3956476596', 'cmd': 'SETPOINT', 'query': {'stemp.uom17': '44.6', 'mode.uom25': '0', 'active_t.uom44': '0'}}
+        #{'address': 'room3956476596', 'cmd': 'SETPOINT', 'query': {'STEMP.uom17': '44.6', 'SPMODE.uom25': '0', 'ACTIVET.uom44': '0'}}
         logging.debug('set_set_point {} called'.format(command))
         t_stop = 0
+        Ctemp = None
         query = command.get('query')
-        if 'stemp.uom17' in query:
-            Ftemp = float(query.get('stemp.uom17'))
+        if 'STEMP.uom17' in query or 'stemp.uom17' in query:
+            Ftemp = float(query.get('STEMP.uom17', query.get('stemp.uom17')))
             Ctemp = round((Ftemp - 32)*5/9, 0)
             #logging.debug('F 2 Celcius {}  {}'.format(Ftemp, Ctemp))
-        elif 'stemp.uom4' in query:    
-            Ctemp = round(int(float(query.get('stemp.uom4'))*2)/2,1)
+        elif 'STEMP.uom4' in query or 'stemp.uom4' in query:    
+            Ctemp = round(int(float(query.get('STEMP.uom4', query.get('stemp.uom4')))*2)/2,1)
             #logging.debug('Celcius {}'.format(Ctemp))
         else:
             logging.error('something went wrong in set_setpoint {}'.format(query))
-        mode = self.ISY2sp_mode(int(query.get('spmode.uom25')))
-        active_min = int(query.get('active_t.uom44'))
+        mode = self.ISY2sp_mode(int(query.get('SPMODE.uom25', query.get('spmode.uom25'))))
+        active_min = int(query.get('ACTIVET.uom44', query.get('active_t.uom44')))
         if active_min != 0:
             t_now = int(time.time())
             t_stop = t_now + 60*active_min
             logging.debug('time : {} {}'.format(t_now, t_stop))            
         res = self.myNetatmo.execute_set_setpoint(self.home_id, self.room_id, Ctemp, mode, t_stop)
         try:
-            if res['status'] == 'ok':
+            if res and res.get('status') == 'ok':
                 self.update()
         except:
             logging.error('set_setpoint failed')  
@@ -185,15 +204,15 @@ class udiNetatmoEnergyRoom(udi_interface.Node):
         logging.debug('set_opmode {} called'.format(command))
         t_stop = 0
         query = command.get('query')
-        mode = self.ISY2op_mode( int(query.get('opmode.uom25')))
-        active_min = int(query.get('active_t.uom44'))
+        mode = self.ISY2op_mode( int(query.get('OPMODE.uom25', query.get('opmode.uom25'))))
+        active_min = int(query.get('ACTIVET.uom44', query.get('active_t.uom44')))
         if active_min != 0:
             t_now = int(time.time())
             t_stop = t_now + 60*active_min
             logging.debug('time : {} {}'.format(t_now, t_stop))
         res = self.myNetatmo.execute_set_mode(self.home_id, mode, t_stop)
         try:
-            if res['status'] == 'ok':
+            if res and res.get('status') == 'ok':
                 self.update()
         except:
             logging.error('set_opmode failed')    

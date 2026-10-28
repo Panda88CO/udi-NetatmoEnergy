@@ -1,8 +1,8 @@
 <nodeDefs>
-  <nodeDef id="controller" nls="ctl">
+  <nodeDef id="CONTROLLER" nls="CTL">
     <editors />
     <sts>
-      <st id="ST" editor="connect" />
+      <st id="ST" editor="CONNECT" />
     </sts>
     <cmds>
       <sends />
@@ -12,41 +12,41 @@
     </cmds>
   </nodeDef>
 
-  <nodeDef id="room" nls="nroom">
+  <nodeDef id="ROOM" nls="NROOM">
     <sts>
-      <st id="ST" editor="connect" />
-      <st id="CLITEMP" editor="temperature" />
-      <st id="CLISPH" editor="temperature" />
-      <st id="CLIMD" editor="t_ctrl_mode" />
-      <st id="GV0" editor="energy_req" />
-      <st id="GV1" editor="bool" />
-      <st id="GV2" editor="bool" />
-      <st id="GV3" editor="t_timestamp" />     
+      <st id="ST" editor="CONNECT" />
+      <st id="CLITEMP" editor="TEMPERATURE" />
+      <st id="CLISPH" editor="TEMPERATURE" />
+      <st id="CLIMD" editor="TCTRLMODE" />
+      <st id="GV0" editor="ENERGYREQ" />
+      <st id="GV1" editor="BOOL" />
+      <st id="GV2" editor="BOOL" />
+      <st id="GV3" editor="TTIMESTAMP" />     
     </sts>
     <cmds>
       <sends />
       <accepts>
         <cmd id="UPDATE" />  
         <cmd id="SETPOINT" >
-              <p id="stemp" editor="set_temp" init="CLISPH"/>             
-               <p id="spmode" editor="th_mode" init="0" /> 
-               <p id="active_t" editor="t_min" init="0" />   
+              <p id="STEMP" editor="SETTEMP" init="CLISPH"/>             
+               <p id="SPMODE" editor="THMODE" init="0" /> 
+               <p id="ACTIVET" editor="TMIN" init="0" />   
 
         </cmd>      
         <cmd id="OPMODE" >
-                <p id="opmode" editor="setCLIMD" init="CLIMD"/> 
-                <p id="active_t" editor="t_min" init="0" />   
+                <p id="OPMODE" editor="SETCLIMD" init="CLIMD"/> 
+                <p id="ACTIVET" editor="TMIN" init="0" />   
         </cmd>          
 </accepts>
     </cmds>
   </nodeDef>
 
-  <nodeDef id="valve" nls="nvalve">
+  <nodeDef id="VALVE" nls="NVALVE">
     <sts>
-      <st id="ST" editor="connect" />
-      <st id="GV0" editor="battery" />
-      <st id="GV1" editor="rf_strength" />
-      <st id="GV2" editor="bat_value" />
+      <st id="ST" editor="CONNECT" />
+      <st id="GV0" editor="BATTERY" />
+      <st id="GV1" editor="RFSTRENGTH" />
+      <st id="GV2" editor="BATVALUE" />
     </sts>
     <cmds>
       <sends />

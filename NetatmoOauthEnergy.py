@@ -50,12 +50,12 @@ class NetatmoCloud(OAuth):
         self.scopeList = ['read_station', 'read_magellan', 'write_magellan', 'read_bubendorff', 'write_bubendorff', 'read_smarther', 'write_smarther', 'read_thermostat','write_thermostat', 'read+_camera', 'write_camera', 'access_camera', 'read_boorbell', 'access_doorbell',
              'read_mx', 'write_mx', 'read_presence', 'write_presence', 'access_presence', 'read_homecoach', 'read_carbonmonoxidedetector', 'read_smokedetector', 'read_mhs1', 'write_mhs1']
         
-        self._dev_list  = ['NAPlug', 'NRV', 'NATherm1']
+        self._dev_list  = ['NAPlug', 'NRV', 'NATherm1', 'OTH', 'OTM', 'BNS']
 
         self.energy_data = {}
-        self.GW_modules = ['NAPlug']
+        self.GW_modules = ['NAPlug', 'OTH']
         self.valves =['NRV']
-        self.thermostat = ['NATherm1']
+        self.thermostat = ['NATherm1', 'OTM', 'BNS']
 
         #self.customParameters= Custom(polyglot, 'customparams')
         #self.Notices = Custom(self.poly, 'notices')
@@ -126,7 +126,7 @@ class NetatmoCloud(OAuth):
         self.customParameters.load(userParams)
         logging.debug('customParamsHandler called {}'.format(userParams))
         client_ok = False
-        client_secret = False
+        secret_ok = False
         oauthSettingsUpdate = {}
         # Example for a boolean field
 
@@ -136,7 +136,7 @@ class NetatmoCloud(OAuth):
                 oauthSettingsUpdate['client_id'] = self.customParameters['clientID']
                 client_ok = True
         else:
-            logging.warnig('No clientID found')
+            logging.warning('No clientID found')
             self.customParameters['clientID'] = 'enter client_id'
             self.client_ID = None
             
@@ -146,7 +146,7 @@ class NetatmoCloud(OAuth):
                 oauthSettingsUpdate['client_secret'] = self.customParameters['clientSecret']
                 secret_ok = True
         else:
-            logging.warnig('No clientSecret found')
+            logging.warning('No clientSecret found')
             self.customParameters['clientSecret'] = 'enter client_secret'
             self.client_SECRET = None
 
@@ -236,7 +236,7 @@ class NetatmoCloud(OAuth):
             'Authorization': f"Bearer { accessToken }"
         }
 
-        if method in [ 'PATCH', 'POST'] and body is None:
+        if method == 'PATCH' and body is None:
             logging.error(f"body is required when using { method } { completeUrl }")
         logging.debug(' call info url={}, header= {}, body = {}'.format(completeUrl, headers, body))
 
@@ -248,7 +248,10 @@ class NetatmoCloud(OAuth):
             elif method == 'PATCH':
                 response = requests.patch(completeUrl, headers=headers, json=body)
             elif method == 'POST':
-                response = requests.post(completeUrl, headers=headers, json=body)
+                if body is not None:
+                    response = requests.post(completeUrl, headers=headers, json=body)
+                else:
+                    response = requests.post(completeUrl, headers=headers)
             elif method == 'PUT':
                 response = requests.put(completeUrl, headers=headers)
 
@@ -281,7 +284,7 @@ class NetatmoCloud(OAuth):
             api_str = '/setroomthermpoint?home_id='+home_id_str+'&room_id='+room_id_str+'&mode=max'
             if t_stop == 0: # do not add stop time 
                 logging.warning('Warning no stop time specified - setting to 3 hours ')                
-                t_stop = int(time.time()+3*60*50)                
+                t_stop = int(time.time()+3*60*60)                
             api_str=api_str+'&endtime='+str(int(t_stop))
         else:
             api_str = '/setroomthermpoint?home_id='+home_id_str+'&room_id='+room_id_str+'&mode=home'
@@ -304,9 +307,10 @@ class NetatmoCloud(OAuth):
 
     def process_homes_data(self, net_system):
         homes_list = {}
-        for home in range(0, len(net_system['homes'])):
-            tmp = net_system['homes'][home]
-            homes_list[tmp['id']]= tmp
+        if net_system and 'homes' in net_system:
+            for home in range(0, len(net_system['homes'])):
+                tmp = net_system['homes'][home]
+                homes_list[tmp['id']]= tmp
         logging.debug('homes list: {}'.format(homes_list))
         return(homes_list)
 
@@ -316,9 +320,13 @@ class NetatmoCloud(OAuth):
         logging.debug('get_home_info')
         api_str = '/homesdata'
         temp = self._callApi('GET', api_str )
-        self.netatmo_systems = temp['body']
-        logging.debug(self.netatmo_systems)
-        self.homes_list = self.process_homes_data(self.netatmo_systems)
+        if temp and 'body' in temp:
+            self.netatmo_systems = temp['body']
+            logging.debug(self.netatmo_systems)
+            self.homes_list = self.process_homes_data(self.netatmo_systems)
+        else:
+            logging.error('Failed to retrieve homesdata: {}'.format(temp))
+            self.homes_list = getattr(self, 'homes_list', {})
         return(self.homes_list)
 
 
@@ -336,11 +344,13 @@ class NetatmoCloud(OAuth):
                 tmp = self._callApi('GET', api_str)
                 logging.debug('get_home_status - tmp: {}'.format(tmp))
                 if tmp:
-                    meas_time = tmp['time_server']                
+                    meas_time = tmp.get('time_server', int(time.time()))                
                     if 'errors' in tmp:
+                        status['error'] = tmp['errors']
+                    elif 'error' in tmp:
                         status['error'] = tmp['error']
 
-                    if 'body' in tmp:
+                    if 'body' in tmp and 'home' in tmp['body']:
                         tmp = tmp['body']['home']
                         status[home_id] = home_id #tmp['body']['body']['home']
                         logging.debug('get_home_status - tmp: {}'.format(tmp))
@@ -404,86 +414,88 @@ class NetatmoCloud(OAuth):
               
     def get_time_since_last_update_sec(self, home_id):
         timenow = int(time.time())
-        delay_s = int(timenow - self.energy_data[home_id]['meas_time'])
-        return(delay_s)
+        if home_id in self.energy_data and 'meas_time' in self.energy_data[home_id]:
+            delay_s = int(timenow - self.energy_data[home_id]['meas_time'])
+            return(delay_s)
+        return(0)
     
     def get_room_temp(self, home_id, room_id):
         logging.debug('get_room_temp')
-        if room_id in self.energy_data[home_id]['rooms']:
-            return( self.energy_data[home_id]['rooms'][room_id]['therm_measured_temperature'])
+        if home_id in self.energy_data and 'rooms' in self.energy_data[home_id] and room_id in self.energy_data[home_id]['rooms']:
+            return( self.energy_data[home_id]['rooms'][room_id].get('therm_measured_temperature'))
         else:
             return(None)
         
     def get_room_setpoint_temp(self, home_id, room_id):
         logging.debug('get_room_set_point_temp')
-        if room_id in self.energy_data[home_id]['rooms']:
-            return( self.energy_data[home_id]['rooms'][room_id]['therm_setpoint_temperature'])
+        if home_id in self.energy_data and 'rooms' in self.energy_data[home_id] and room_id in self.energy_data[home_id]['rooms']:
+            return( self.energy_data[home_id]['rooms'][room_id].get('therm_setpoint_temperature'))
         else:
             return(None)
 
 
     def get_room_setpoint_mode(self, home_id, room_id):
         logging.debug('get_room_set_point_mode')
-        if room_id in self.energy_data[home_id]['rooms']:
-            return( self.energy_data[home_id]['rooms'][room_id]['therm_setpoint_mode'])
+        if home_id in self.energy_data and 'rooms' in self.energy_data[home_id] and room_id in self.energy_data[home_id]['rooms']:
+            return( self.energy_data[home_id]['rooms'][room_id].get('therm_setpoint_mode'))
         else:
             return(None)
         
     def get_room_online(self, home_id, room_id):
         logging.debug('get_room_online - {} {} {}'.format(home_id, room_id, self.energy_data))
-        if room_id in self.energy_data[home_id]['rooms']:
-            return( self.energy_data[home_id]['rooms'][room_id]['reachable'])
+        if home_id in self.energy_data and 'rooms' in self.energy_data[home_id] and room_id in self.energy_data[home_id]['rooms']:
+            return( self.energy_data[home_id]['rooms'][room_id].get('reachable', False))
         else:
             return(None)
     
     def get_room_anticipating(self, home_id, room_id):
         logging.debug('get_room_anticipating')
-        if room_id in self.energy_data[home_id]['rooms']:
-            return( self.energy_data[home_id]['rooms'][room_id]['anticipating'])
+        if home_id in self.energy_data and 'rooms' in self.energy_data[home_id] and room_id in self.energy_data[home_id]['rooms']:
+            return( self.energy_data[home_id]['rooms'][room_id].get('anticipating', False))
         else:
             return(None)
         
     def get_room_heat_power_request(self, home_id, room_id):
         logging.debug('get_room_heat_power_request')
-        if room_id in self.energy_data[home_id]['rooms']:
-            return( self.energy_data[home_id]['rooms'][room_id]['heating_power_request'])
+        if home_id in self.energy_data and 'rooms' in self.energy_data[home_id] and room_id in self.energy_data[home_id]['rooms']:
+            return( self.energy_data[home_id]['rooms'][room_id].get('heating_power_request', 0))
         else:
             return(None)
 
 
     def get_room_open_window(self, home_id, room_id):
         logging.debug('get_room_open_window')
-        if room_id in self.energy_data[home_id]['rooms']:
-            return( self.energy_data[home_id]['rooms'][room_id]['open_window'])
+        if home_id in self.energy_data and 'rooms' in self.energy_data[home_id] and room_id in self.energy_data[home_id]['rooms']:
+            return( self.energy_data[home_id]['rooms'][room_id].get('open_window', False))
         else:
             return(None)
 
 
     def get_valve_online(self, home_id, valve_id):
         logging.debug('get_valve_online - data{} {} {}'.format(home_id, valve_id, self.energy_data) )
-        if valve_id in self.energy_data[home_id]['modules']:
-                return( self.energy_data[home_id]['modules'][valve_id]['reachable'])
+        if home_id in self.energy_data and 'modules' in self.energy_data[home_id] and valve_id in self.energy_data[home_id]['modules']:
+                return( self.energy_data[home_id]['modules'][valve_id].get('reachable', False))
         else:
             return(None)
 
     def get_valve_bat_state(self, home_id, valve_id):
         logging.debug('get_valve_bat_state')
-        if valve_id in self.energy_data[home_id]['modules']:
-            return( self.energy_data[home_id]['modules'][valve_id]['battery_state'])
+        if home_id in self.energy_data and 'modules' in self.energy_data[home_id] and valve_id in self.energy_data[home_id]['modules']:
+            return( self.energy_data[home_id]['modules'][valve_id].get('battery_state'))
         else:
             return(None)
 
     def get_valve_bat_level(self, home_id, valve_id):
         logging.debug('get_valve_bat_level')
-        if valve_id in self.energy_data[home_id]['modules']:
-            return( self.energy_data[home_id]['modules'][valve_id]['battery_level'])
+        if home_id in self.energy_data and 'modules' in self.energy_data[home_id] and valve_id in self.energy_data[home_id]['modules']:
+            return( self.energy_data[home_id]['modules'][valve_id].get('battery_level'))
         else:
             return(None)
 
     def get_valve_rf_strength(self, home_id, valve_id):
         logging.debug('get_valve_rf_strength')
-        if valve_id in self.energy_data[home_id]['modules']:
-            return( self.energy_data[home_id]['modules'][valve_id]['rf_strength'])
+        if home_id in self.energy_data and 'modules' in self.energy_data[home_id] and valve_id in self.energy_data[home_id]['modules']:
+            return( self.energy_data[home_id]['modules'][valve_id].get('rf_strength'))
         else:
             return(None)
 

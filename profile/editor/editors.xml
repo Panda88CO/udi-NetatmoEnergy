@@ -1,69 +1,69 @@
 <editors>
-    <editor id="status">
+    <editor id="STATUS">
         <range uom="25" subset="0,1" />
     </editor>
 
-    <editor id="bool">
+    <editor id="BOOL">
         <range uom="2" subset="0,1" />
     </editor>
 
-      <editor id="connect">
-        <range uom="25" subset="0-1,99"  nls="connect"/>
+      <editor id="CONNECT">
+        <range uom="25" subset="0-1,99"  nls="CONNECT"/>
     </editor>  
 
-    <editor id="temperature">
+    <editor id="TEMPERATURE">
         <range uom="4" min="-50" max="65" prec="1" />
         <range uom="17" min="-50" max="150" prec="1" />
-        <range uom="25" subset="0,99" nls="error" />
+        <range uom="25" subset="0,99" nls="ERROR" />
     </editor>
 
-    <editor id="set_temp">
+    <editor id="SETTEMP">
         <range uom="4" min="5" max="35" step="0.5" prec="1" />
         <range uom="17" min="41" max="95" step="0.5" prec="1" />   
     </editor>
 
 
-    <editor id="t_timestamp">
+    <editor id="TTIMESTAMP">
         <range uom="44" min="0" max="525600" prec="1" />
-        <range uom="25" subset="99" nls="error" />
+        <range uom="25" subset="99" nls="ERROR" />
     </editor>
 
-    <editor id="t_ctrl_mode">
-        <range uom="25" subset="0-3,99" nls="ctrl_mode" />
+    <editor id="TCTRLMODE">
+        <range uom="25" subset="0-3,99" nls="CTRLMODE" />
     </editor>
 
-    <editor id="setCLIMD">
-        <range uom="25" subset="0-2" nls="ctrl_mode" />
+    <editor id="SETCLIMD">
+        <range uom="25" subset="0-2" nls="CTRLMODE" />
     </editor>
 
-    <editor id="energy_req">
+    <editor id="ENERGYREQ">
         <range uom="0" min="0" max="10000"/>
-        <range uom="25" subset="0,99" nls="error" />
+        <range uom="25" subset="0,99" nls="ERROR" />
     </editor>    
 
-    <editor id="th_mode">
-        <!--<range uom="25" subset="0-2" nls="th_mode" />-->
-        <range uom="25" subset="0-1" nls="th_mode" />
+    <editor id="THMODE">
+        <!--<range uom="25" subset="0-2" nls="THMODE" />-->
+        <range uom="25" subset="0-1" nls="THMODE" />
     </editor>
 
-    <editor id="t_min">
+    <editor id="TMIN">
          <range uom="44" min="0" max="120" prec="0" />
     </editor>
 
-    <editor id="battery">
-        <range uom="25" subset="0-6,99" nls="battery" />
+    <editor id="BATTERY">
+        <range uom="25" subset="0-6,99" nls="BATTERY" />
     </editor>
 
 
-    <editor id="bat_value">
+    <editor id="BATVALUE">
         <range uom="72"  min="0" max="7" prec="2" />
-        <range uom="25" subset="0,99" nls="error" />
+        <range uom="25" subset="0,99" nls="ERROR" />
     </editor>
 
 
-    <editor id="rf_strength">
+    <editor id="RFSTRENGTH">
         <range uom="131"  min="-100" max="174"/>
-        <range uom="25" subset="0,99" nls="error" />
+        <range uom="25" subset="0,99" nls="ERROR" />
     </editor>
 
 </editors>
